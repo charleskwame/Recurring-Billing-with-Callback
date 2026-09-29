@@ -163,7 +163,7 @@ const createFollowOnSubscription = async (transactionId, plan) => {
   try {
     const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
       headers,
-      timeout: 10000,
+      timeout: 60000,
     });
     return response.data;
   } catch (error) {
