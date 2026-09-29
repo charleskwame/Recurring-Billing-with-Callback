@@ -34,7 +34,7 @@ const MERCHANT_ID = process.env.CYBERSOURCE_MERCHANT_ID;
 const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const resourcePath = "/uc/v1/sessions";
-// const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
+const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
 const PLANS = {
   daily: {
     id: process.env.CYBERSOURCE_RECURRING_PLAN_ID,
@@ -42,60 +42,38 @@ const PLANS = {
     amount: "20.00",
     interval: "day",
   },
-  weekly: {
-    id: "7906006439496154804804",
-    name: "Weekly 50 Test",
-    amount: "50.00",
-    interval: "week",
-  },
-  monthly: {
-    id: "7906006786536213404801",
-    name: "Monthly 100 test",
-    amount: "100.00",
-    interval: "month",
-  },
 };
 
-// const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000]; // Delays in milliseconds for retry attempts
+const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000];
 
-// const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
+const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
-// const decodeJwtPayload = (token) => {
-//   try {
-//     if (!token || typeof token !== "string") {
-//       throw new Error("JWT is empty or invalid.");
-//     }
+const decodeJwtPayload = (token) => {
+  try {
+    if (!token || typeof token !== "string") {
+      throw new Error("JWT is empty or invalid.");
+    }
 
-//     const parts = token.split(".");
+    const parts = token.split(".");
 
-//     if (parts.length !== 3) {
-//       throw new Error("Invalid JWT format.");
-//     }
+    if (parts.length !== 3) {
+      throw new Error("Invalid JWT format.");
+    }
 
-//     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-
-//     const json = Buffer.from(base64, "base64").toString("utf8");
-
-//     return JSON.parse(json);
-//   } catch (error) {
-//     console.error("Failed to decode JWT:", error);
-//     return null;
-//   }
-// };
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
+  } catch (error) {
+    console.error("Failed to decode JWT:", error);
+    return null;
+  }
+};
 
 const normalizedHost = HOST ? HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
 // const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
 
-const getPlan = (planKey) => {
-  const plan = PLANS[planKey];
-
-  if (!plan?.id) {
-    return null;
-  }
-  return plan;
-};
+const getDailyPlan = () => (PLANS.daily.id ? PLANS.daily : null);
 
 const createCheckoutSession = async (req, res) => {
   try {
@@ -107,13 +85,13 @@ const createCheckoutSession = async (req, res) => {
 
     const url = `https://${normalizedHost}${resourcePath}`;
 
-    const plan = getPlan(req.body?.planKey);
+    const plan = getDailyPlan();
 
     if (!plan) {
-      return res.status(400).json({ error: "A valid subscription plan is required." });
+      return res.status(500).json({ error: "The Daily 20 subscription plan is not configured." });
     }
 
-    const { planKey, ...checkoutPayload } = req.body;
+    const checkoutPayload = { ...req.body };
     checkoutPayload.data = {
       ...checkoutPayload.data,
       orderInformation: {
@@ -154,90 +132,89 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
-// const isRetryableFollowOnError = (error) => {
-//   const status = error.response?.status;
-//   const details = error.response?.data?.details;
+const isRetryableFollowOnError = (error) => {
+  const status = error.response?.status;
+  const details = error.response?.data?.details;
 
-//   return [502, 503, 504].includes(status) || ([400, 404].includes(status) && !Array.isArray(details));
-// };
+  return [502, 503, 504].includes(status) || ([400, 404].includes(status) && !Array.isArray(details));
+};
 
-// const createFollowOnSubscription = async (transactionId, plan) => {
-//   const resourcePath = `${subscriptionResourcePath}/follow-ons/${encodeURIComponent(transactionId)}`;
-//   const payload = {
-//     clientReferenceInformation: {
-//       code: `subscription_${transactionId}`,
-//     },
-//     subscriptionInformation: {
-//       planId: plan.id,
-//       name: plan.name,
-//       startDate: formatSubscriptionStartDate(),
-//     },
-//   };
-//   const rawBody = JSON.stringify(payload);
-//   const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", resourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
+const createFollowOnSubscription = async (transactionId, plan) => {
+  const followOnPath = `${subscriptionResourcePath}/follow-ons/${encodeURIComponent(transactionId)}`;
+  const payload = {
+    clientReferenceInformation: {
+      code: `subscription_${transactionId}`,
+    },
+    subscriptionInformation: {
+      planId: plan.id,
+      name: plan.name,
+      startDate: formatSubscriptionStartDate(),
+    },
+  };
+  const rawBody = JSON.stringify(payload);
+  const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", followOnPath, rawBody, API_KEY_ID, SHARED_SECRET);
 
-//   let lastError;
+  let lastError;
 
-//   for (let attempt = 0; attempt < FOLLOW_ON_RETRY_DELAYS_MS.length + 1; attempt += 1) {
-//     try {
-//       const response = await axios.post(`https://${normalizedHost}${resourcePath}`, payload, {
-//         headers,
-//         timeout: 10000,
-//       });
-//       return response.data;
-//     } catch (error) {
-//       lastError = error;
+  for (let attempt = 0; attempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
+        headers,
+        timeout: 10000,
+      });
+      return response.data;
+    } catch (error) {
+      lastError = error;
 
-//       if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
-//         throw error;
-//       }
+      if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
 
-//       await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
-//     }
-//   }
+      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
+    }
+  }
 
-//   throw lastError;
-// };
+  throw lastError;
+};
 
-// const activateRecurringBilling = async (req, res) => {
-//   try {
-//     if (!HOST || !MERCHANT_ID || !API_KEY_ID || !SHARED_SECRET) {
-//       return res.status(500).json({
-//         error: "CyberSource environment variables are not fully configured.",
-//       });
-//     }
+const activateRecurringBilling = async (req, res) => {
+  try {
+    if (!HOST || !MERCHANT_ID || !API_KEY_ID || !SHARED_SECRET) {
+      return res.status(500).json({
+        error: "CyberSource environment variables are not fully configured.",
+      });
+    }
 
-//     const resultPayload = decodeJwtPayload(req.body?.result);
-//     const transactionId = resultPayload?.id;
-//     const plan = getPlan(req.body?.planKey);
+    const resultPayload = decodeJwtPayload(req.body?.result);
+    const transactionId = resultPayload?.id;
+    const plan = getDailyPlan();
 
-//     if (!transactionId) {
-//       return res.status(400).json({ error: "The payment result does not contain a transaction ID." });
-//     }
+    if (!transactionId) {
+      return res.status(400).json({ error: "The payment result does not contain a transaction ID." });
+    }
 
-//     if (!plan) {
-//       return res.status(400).json({ error: "The daily subscription plan is not configured." });
-//     }
+    if (!plan) {
+      return res.status(500).json({ error: "The Daily 20 subscription plan is not configured." });
+    }
 
-//     const subscription = await createFollowOnSubscription(transactionId, plan);
-//     return res.json({ success: true, response: subscription });
-//   } catch (error) {
-//     console.error("Recurring billing API Error:", error.response?.data || error.message);
+    const subscription = await createFollowOnSubscription(transactionId, plan);
+    return res.json({ success: true, response: subscription });
+  } catch (error) {
+    console.error("Recurring billing API Error:", error.response?.data || error.message);
 
-//     if (error.response) {
-//       return res.status(error.response.status).json({
-//         error: error.response.data?.message || "Recurring subscription request failed",
-//         details: error.response.data,
-//       });
-//     }
+    if (error.response) {
+      return res.status(error.response.status).json({
+        error: error.response.data?.message || "Recurring subscription request failed",
+        details: error.response.data,
+      });
+    }
 
-//     return res.status(500).json({ error: error.message });
-//   }
-// };
+    return res.status(500).json({ error: error.message });
+  }
+};
 
 app.post("/checkout-session", createCheckoutSession);
-
-// app.post("/activate-recurring-billing", activateRecurringBilling);
+app.post("/activate-recurring-billing", activateRecurringBilling);
 
 console.log(`Backend server started at ${new Date().toISOString()}`);
 

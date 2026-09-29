@@ -1,6 +1,6 @@
 const BACKEND_URL = "https://recurring-billing-with-callback-bac.vercel.app";
 
-const planButtons = document.querySelectorAll(".plan-button");
+const dailyButton = document.querySelector(".plan-button");
 const checkoutSidebar = document.getElementById("checkoutSidebar");
 const closeCheckoutButton = document.getElementById("closeCheckout");
 const statusMessage = document.getElementById("statusMessage");
@@ -8,11 +8,11 @@ const successDialog = document.getElementById("successDialog");
 const subscriptionResult = document.getElementById("subscriptionResult");
 const closeSuccessDialogButton = document.getElementById("closeSuccessDialog");
 const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-with-callback-fro.vercel.app" : window.location.origin;
+const PLAN_KEY = "daily";
 
-const activateRecurringBilling = async (result, planKey) => {
+const activateRecurringBilling = async (result) => {
   return axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
     result,
-    planKey,
   });
 };
 
@@ -108,21 +108,18 @@ const startWithVAS = async (captureContext) => {
       paymentScreen: "#embeddedPaymentContainer",
     });
 
-    console.log(result);
+    console.info("[Unified Checkout] mount response received", result);
+    console.dir(result, { depth: null });
 
     if (result) {
-      // const response = await activateRecurringBilling(result, planKey);
+      const response = await activateRecurringBilling(result);
 
       const decodedResult = decodeJwtPayload(result);
 
       console.log("Decoded payment result:", decodedResult);
-      return;
-
-      // console.log("Payment result response:", response);
-
-      // console.log("Subscription result response:", response.data);
-      // statusMessage.textContent = "Subscription created successfully.";
-      // subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+      console.log("Subscription response:", response.data);
+      statusMessage.textContent = "Daily subscription created successfully.";
+      subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
 
       successDialog?.showModal();
     } else {
@@ -161,7 +158,6 @@ const startWithVAS = async (captureContext) => {
 
 const getSessionContext = async (event) => {
   const button = event.currentTarget;
-  // const planKey = button.dataset.planKey;
   button.disabled = true;
   button.textContent = "Loading checkout...";
   statusMessage.textContent = "Preparing secure checkout...";
@@ -201,8 +197,7 @@ const getSessionContext = async (event) => {
     if (window.VAS && typeof window.VAS.UnifiedCheckout === "function") {
       await startWithVAS(captureContext);
       button.disabled = false;
-      // button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
-      statusMessage.textContent = "Payment complete. Your subscription is active.";
+      button.innerHTML = `Choose ${PLAN_KEY} <span aria-hidden="true">&rarr;</span>`;
       return;
     }
 
@@ -221,10 +216,10 @@ const getSessionContext = async (event) => {
   }
 
   button.disabled = false;
-  // button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
+  button.innerHTML = `Choose ${PLAN_KEY} <span aria-hidden="true">&rarr;</span>`;
   checkoutSidebar?.classList.remove("is-open");
 };
 
-planButtons.forEach((button) => button.addEventListener("click", getSessionContext));
+dailyButton?.addEventListener("click", getSessionContext);
 closeCheckoutButton?.addEventListener("click", () => checkoutSidebar?.classList.remove("is-open"));
 closeSuccessDialogButton?.addEventListener("click", () => successDialog?.close());
