@@ -7,7 +7,7 @@ const statusMessage = document.getElementById("statusMessage");
 const successDialog = document.getElementById("successDialog");
 const subscriptionResult = document.getElementById("subscriptionResult");
 const closeSuccessDialogButton = document.getElementById("closeSuccessDialog");
-const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-frontend.vercel.app" : window.location.origin;
+const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-with-callback-fro.vercel.app" : window.location.origin;
 
 const activateRecurringBilling = async (result, planKey) => {
   return axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
@@ -109,8 +109,6 @@ const startWithVAS = async (captureContext, planKey) => {
       paymentScreen: "#embeddedPaymentContainer",
     });
 
-    console.log(result);
-
     if (result) {
       // const response = await activateRecurringBilling(result, planKey);
 
@@ -119,9 +117,13 @@ const startWithVAS = async (captureContext, planKey) => {
       console.log("Decoded payment result:", decodedResult);
 
       // console.log("Payment result response:", response);
+
       // console.log("Subscription result response:", response.data);
-      statusMessage.textContent = "Subscription created successfully.";
+
+      // statusMessage.textContent = "Subscription created successfully.";
+
       // subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+
       successDialog?.showModal();
     } else {
       throw new Error("Unified Checkout returned no payment result.");
