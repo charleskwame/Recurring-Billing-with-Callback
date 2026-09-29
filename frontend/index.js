@@ -109,6 +109,8 @@ const startWithVAS = async (captureContext, planKey) => {
       paymentScreen: "#embeddedPaymentContainer",
     });
 
+    console.log(result);
+
     if (result) {
       // const response = await activateRecurringBilling(result, planKey);
 
@@ -119,9 +121,7 @@ const startWithVAS = async (captureContext, planKey) => {
       // console.log("Payment result response:", response);
 
       // console.log("Subscription result response:", response.data);
-
       // statusMessage.textContent = "Subscription created successfully.";
-
       // subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
 
       successDialog?.showModal();
