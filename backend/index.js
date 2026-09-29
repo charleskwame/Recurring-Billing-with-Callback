@@ -44,14 +44,14 @@ const PLANS = {
   },
 };
 
-const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000];
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 const decodeJwtPayload = (token) => {
   try {
+    if (token && typeof token === "object") {
+      return token;
+    }
+
     if (!token || typeof token !== "string") {
       throw new Error("JWT is empty or invalid.");
     }
@@ -132,13 +132,6 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
-const isRetryableFollowOnError = (error) => {
-  const status = error.response?.status;
-  const details = error.response?.data?.details;
-
-  return [502, 503, 504].includes(status) || ([400, 404].includes(status) && !Array.isArray(details));
-};
-
 const createFollowOnSubscription = async (transactionId, plan) => {
   const followOnPath = `${subscriptionResourcePath}/follow-ons/${encodeURIComponent(transactionId)}`;
   const payload = {
@@ -154,27 +147,12 @@ const createFollowOnSubscription = async (transactionId, plan) => {
   const rawBody = JSON.stringify(payload);
   const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", followOnPath, rawBody, API_KEY_ID, SHARED_SECRET);
 
-  let lastError;
+  const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
+    headers,
+    timeout: 10000,
+  });
 
-  for (let attempt = 0; attempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; attempt += 1) {
-    try {
-      const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
-        headers,
-        timeout: 10000,
-      });
-      return response.data;
-    } catch (error) {
-      lastError = error;
-
-      if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
-        throw error;
-      }
-
-      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
-    }
-  }
-
-  throw lastError;
+  return response.data;
 };
 
 const activateRecurringBilling = async (req, res) => {

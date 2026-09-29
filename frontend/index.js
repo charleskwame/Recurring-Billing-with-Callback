@@ -16,6 +16,14 @@ const activateRecurringBilling = async (result) => {
   });
 };
 
+const handleCheckoutComplete = async (result) => {
+  const response = await activateRecurringBilling(result);
+
+  statusMessage.textContent = "Daily subscription created successfully.";
+  subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+  successDialog?.showModal();
+};
+
 const paymentPayload = () => ({
   targetOrigins: [checkoutOrigin],
   clientVersion: "1.0",
@@ -112,16 +120,10 @@ const startWithVAS = async (captureContext) => {
     console.dir(result, { depth: null });
 
     if (result) {
-      const response = await activateRecurringBilling(result);
-
-      const decodedResult = decodeJwtPayload(result);
+      const decodedResult = typeof result === "string" ? decodeJwtPayload(result) : result;
 
       console.log("Decoded payment result:", decodedResult);
-      console.log("Subscription response:", response.data);
-      statusMessage.textContent = "Daily subscription created successfully.";
-      subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
-
-      successDialog?.showModal();
+      await handleCheckoutComplete(result);
     } else {
       throw new Error("Unified Checkout returned no payment result.");
     }
