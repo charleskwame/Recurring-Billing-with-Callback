@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://recurring-billing-backend.vercel.app";
+const BACKEND_URL = "https://recurring-billing-with-callback-bac.vercel.app";
 
 const planButtons = document.querySelectorAll(".plan-button");
 const checkoutSidebar = document.getElementById("checkoutSidebar");
