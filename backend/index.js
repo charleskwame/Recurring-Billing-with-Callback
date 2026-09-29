@@ -35,26 +35,26 @@ const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const resourcePath = "/uc/v1/sessions";
 // const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
-// const PLANS = {
-//   daily: {
-//     id: process.env.CYBERSOURCE_RECURRING_PLAN_ID,
-//     name: "Daily 20 Test",
-//     amount: "20.00",
-//     interval: "day",
-//   },
-//   weekly: {
-//     id: "7906006439496154804804",
-//     name: "Weekly 50 Test",
-//     amount: "50.00",
-//     interval: "week",
-//   },
-//   monthly: {
-//     id: "7906006786536213404801",
-//     name: "Monthly 100 test",
-//     amount: "100.00",
-//     interval: "month",
-//   },
-// };
+const PLANS = {
+  daily: {
+    id: process.env.CYBERSOURCE_RECURRING_PLAN_ID,
+    name: "Daily 20 Test",
+    amount: "20.00",
+    interval: "day",
+  },
+  weekly: {
+    id: "7906006439496154804804",
+    name: "Weekly 50 Test",
+    amount: "50.00",
+    interval: "week",
+  },
+  monthly: {
+    id: "7906006786536213404801",
+    name: "Monthly 100 test",
+    amount: "100.00",
+    interval: "month",
+  },
+};
 
 // const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000]; // Delays in milliseconds for retry attempts
 
