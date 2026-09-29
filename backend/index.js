@@ -42,18 +42,6 @@ const PLANS = {
     amount: "20.00",
     interval: "day",
   },
-  weekly: {
-    id: "7906006439496154804804",
-    name: "Weekly 50 Test",
-    amount: "50.00",
-    interval: "week",
-  },
-  monthly: {
-    id: "7906006786536213404801",
-    name: "Monthly 100 test",
-    amount: "100.00",
-    interval: "month",
-  },
 };
 
 const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000]; // Delays in milliseconds for retry attempts
@@ -86,6 +74,7 @@ const decodeJwtPayload = (token) => {
 };
 
 const normalizedHost = HOST ? HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
+const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
 
 const getPlan = (planKey) => {
   const plan = PLANS[planKey];
@@ -153,7 +142,89 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
+const isRetryableFollowOnError = (error) => {
+  const status = error.response?.status;
+  const details = error.response?.data?.details;
+
+  return [502, 503, 504].includes(status) || ([400, 404].includes(status) && !Array.isArray(details));
+};
+
+const createFollowOnSubscription = async (transactionId, plan) => {
+  const resourcePath = `${subscriptionResourcePath}/follow-ons/${encodeURIComponent(transactionId)}`;
+  const payload = {
+    clientReferenceInformation: {
+      code: `subscription_${transactionId}`,
+    },
+    subscriptionInformation: {
+      planId: plan.id,
+      name: plan.name,
+      startDate: formatSubscriptionStartDate(),
+    },
+  };
+  const rawBody = JSON.stringify(payload);
+  const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", resourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
+
+  let lastError;
+
+  for (let attempt = 0; attempt < FOLLOW_ON_RETRY_DELAYS_MS.length + 1; attempt += 1) {
+    try {
+      const response = await axios.post(`https://${normalizedHost}${resourcePath}`, payload, {
+        headers,
+        timeout: 10000,
+      });
+      return response.data;
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+
+      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError;
+};
+
+const activateRecurringBilling = async (req, res) => {
+  try {
+    if (!HOST || !MERCHANT_ID || !API_KEY_ID || !SHARED_SECRET) {
+      return res.status(500).json({
+        error: "CyberSource environment variables are not fully configured.",
+      });
+    }
+
+    const resultPayload = decodeJwtPayload(req.body?.result);
+    const transactionId = resultPayload?.id;
+    const plan = getPlan(req.body?.planKey);
+
+    if (!transactionId) {
+      return res.status(400).json({ error: "The payment result does not contain a transaction ID." });
+    }
+
+    if (!plan) {
+      return res.status(400).json({ error: "The daily subscription plan is not configured." });
+    }
+
+    const subscription = await createFollowOnSubscription(transactionId, plan);
+    return res.json({ success: true, response: subscription });
+  } catch (error) {
+    console.error("Recurring billing API Error:", error.response?.data || error.message);
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        error: error.response.data?.message || "Recurring subscription request failed",
+        details: error.response.data,
+      });
+    }
+
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 app.post("/checkout-session", createCheckoutSession);
+app.post("/activate-recurring-billing", activateRecurringBilling);
 
 console.log(`Backend server started at ${new Date().toISOString()}`);
 
