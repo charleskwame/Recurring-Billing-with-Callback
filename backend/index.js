@@ -158,27 +158,27 @@ const createFollowOnSubscription = async (transactionId, plan) => {
   const rawBody = JSON.stringify(payload);
   const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", followOnPath, rawBody, API_KEY_ID, SHARED_SECRET);
 
-  // let lastError;
+  let lastError;
 
-  try {
-    const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
-      headers,
-      timeout: 60000,
-    });
-    return response.data;
-  } catch (error) {
-    // lastError = error;
-    return Promise.reject(error);
+  for (let attempt = 0; attempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const response = await axios.post(`https://${normalizedHost}${followOnPath}`, payload, {
+        headers,
+        timeout: 10000,
+      });
+      return response.data;
+    } catch (error) {
+      lastError = error;
 
-    // if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
-    //   throw error;
-    // }
+      if (!isRetryableFollowOnError(error) || attempt === FOLLOW_ON_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
 
-    // await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
+      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt]);
+    }
   }
-  // for (let attempt = 0; attempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; attempt += 1) {}
 
-  // throw lastError;
+  throw lastError;
 };
 
 const activateRecurringBilling = async (req, res) => {
