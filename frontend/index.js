@@ -94,7 +94,7 @@ const loadCyberSourceSdk = (clientLibrary, integrity) => {
   });
 };
 
-const startWithVAS = async (captureContext, planKey) => {
+const startWithVAS = async (captureContext) => {
   let client = null;
   let checkout = null;
 
@@ -117,6 +117,7 @@ const startWithVAS = async (captureContext, planKey) => {
       const decodedResult = decodeJwtPayload(result);
 
       console.log("Decoded payment result:", decodedResult);
+      return;
 
       // console.log("Payment result response:", response);
 
@@ -199,7 +200,7 @@ const getSessionContext = async (event) => {
     await loadCyberSourceSdk(clientLibrary, integrity);
 
     if (window.VAS && typeof window.VAS.UnifiedCheckout === "function") {
-      await startWithVAS(captureContext, planKey);
+      await startWithVAS(captureContext);
       button.disabled = false;
       button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
       statusMessage.textContent = "Payment complete. Your subscription is active.";
