@@ -16,8 +16,7 @@ const activateRecurringBilling = async (result, planKey) => {
   });
 };
 
-const paymentPayload = (planKey) => ({
-  planKey,
+const paymentPayload = () => ({
   targetOrigins: [checkoutOrigin],
   clientVersion: "1.0",
   country: "US",
@@ -162,7 +161,7 @@ const startWithVAS = async (captureContext) => {
 
 const getSessionContext = async (event) => {
   const button = event.currentTarget;
-  const planKey = button.dataset.planKey;
+  // const planKey = button.dataset.planKey;
   button.disabled = true;
   button.textContent = "Loading checkout...";
   statusMessage.textContent = "Preparing secure checkout...";
@@ -170,7 +169,7 @@ const getSessionContext = async (event) => {
   event.preventDefault();
 
   try {
-    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload(planKey));
+    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload());
 
     const captureContext = response.data;
 
@@ -202,7 +201,7 @@ const getSessionContext = async (event) => {
     if (window.VAS && typeof window.VAS.UnifiedCheckout === "function") {
       await startWithVAS(captureContext);
       button.disabled = false;
-      button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
+      // button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
       statusMessage.textContent = "Payment complete. Your subscription is active.";
       return;
     }
@@ -222,7 +221,7 @@ const getSessionContext = async (event) => {
   }
 
   button.disabled = false;
-  button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
+  // button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
   checkoutSidebar?.classList.remove("is-open");
 };
 
