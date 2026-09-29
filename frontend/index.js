@@ -118,10 +118,10 @@ const startWithVAS = async (captureContext, planKey) => {
 
       console.log("Decoded payment result:", decodedResult);
 
-      console.log("Payment result response:", response);
-      console.log("Subscription result response:", response.data);
+      // console.log("Payment result response:", response);
+      // console.log("Subscription result response:", response.data);
       statusMessage.textContent = "Subscription created successfully.";
-      subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+      // subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
       successDialog?.showModal();
     } else {
       throw new Error("Unified Checkout returned no payment result.");
